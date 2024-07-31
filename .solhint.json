@@ -1,0 +1,12 @@
+{
+  "extends": "solhint:recommended",
+  "plugins": [],
+  "rules": {
+    "avoid-suicide": "error",
+    "func-visibility": ["off", { "ignoreConstructors": true }],
+    "compiler-version": ["off", "^0.5.8"],
+    "mark-callable-contracts": "off",
+    "not-rely-on-time": "off",
+    "max-states-count": "off"
+  }
+}

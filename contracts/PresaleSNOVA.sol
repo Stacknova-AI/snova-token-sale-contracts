@@ -21,14 +21,14 @@ import {TokenSaleRegistry} from "./TokenSaleRegistry.sol";
  */
 contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
-    using Address for address;
+    using Address for address payable;
 
     bytes32 public constant PURCHASE_AGENT_ROLE = keccak256("PURCHASE_AGENT_ROLE");
     address internal constant NATIVE_CURRENCY_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     struct Currency {
         AggregatorV3Interface priceFeed;
-        uint256 decimals; // 18 for tokens like DAI, 6 for USDT and USDC
+        uint256 decimals; // 18 or 6 depends on token and network
         bool useStaticPrice; // If true, use a static price of $1
         uint256 totalCollected; // Total collected amount of the currency
     }
@@ -118,6 +118,11 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     error ErrNullAddress();
 
     /**
+     * @notice Thrown when an invalid decimals value is provided.
+     */
+    error ErrInvalidDecimals();
+
+    /**
      * @notice Thrown when the `amount_` parameter is not 0 for native currency purchases.
      */
     error ErrAmountValidation();
@@ -131,6 +136,11 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
      * @notice Thrown when the price threshold is set to an invalid value.
      */
     error ErrInvalidPriceThreshold();
+
+    /**
+     * @notice Thrown when the presale price is invalid (e.g., zero).
+     */
+    error ErrInvalidPrice();
 
     /**
      * @notice Thrown when an allocation error occurs in a sale round due to supply limits.
@@ -200,10 +210,13 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     /**
      * @notice Adds a new currency and its associated price feed.
      * @dev Can only be called by an account with the `DEFAULT_ADMIN_ROLE`.
+     * Validates the `tokenAddress_` and `decimals_`.
      * @param tokenAddress_ The address of the ERC20 token.
      * @param priceFeed_ The address of the new price feed, or zero address for static price.
      * @param decimals_ The decimals used by the currency.
      * @param useStaticPrice_ If true, use a static price of $1 instead of a price feed.
+     * Reverts with `ErrNullAddress` if `tokenAddress_` is zero.
+     * Reverts with `ErrInvalidDecimals` if `decimals_` is zero or greater than 18.
      */
     function addCurrency(
         address tokenAddress_,
@@ -211,6 +224,12 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
         uint256 decimals_,
         bool useStaticPrice_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (tokenAddress_ == address(0)) {
+            revert ErrNullAddress();
+        }
+        if (decimals_ == 0 || decimals_ > 18) {
+            revert ErrInvalidDecimals();
+        }
         _addCurrency(tokenAddress_, priceFeed_, decimals_, useStaticPrice_);
     }
 
@@ -236,15 +255,17 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
 
     /**
      * @notice Purchases tokens using the specified currency directly sent to the contract.
-     * @dev This public function allows any user to purchase tokens when the contract is not paused. It retrieves the
-     * current round details from TokenSaleRegistry, verifies token availability and round status, and calculates the number
-     * of tokens purchasable with the provided currency amount.
+     * @dev Validates the `tokenAddress_` to ensure it is not the zero address unless it's the native currency address.
      * @param ref_ Optional referral address provided by the user to potentially earn referral bonuses.
-     * @param tokenAddress_ The address of the ERC20 token used for purchase, or zero address for native currency.
+     * @param tokenAddress_ The address of the ERC20 token used for purchase, or the native currency address.
      * @param amount_ The amount of currency to be used for purchase. For native currency, this should be 0 as `msg.value` is used.
-     * @notice Reverts if the currency is not whitelisted, the sale is not active, or the round is closed.
+     * @notice Reverts with `ErrNullAddress` if `tokenAddress_` is the zero address and not the native currency address.
+     * Reverts if the currency is not whitelisted, the sale is not active, or the round is closed.
      */
     function purchaseTokens(address ref_, address tokenAddress_, uint256 amount_) external payable nonReentrant {
+        if (tokenAddress_ == address(0)) {
+            revert ErrNullAddress();
+        }
         if (_currencies[tokenAddress_].decimals == 0) {
             revert ErrCurrencyNotWhitelisted();
         }
@@ -278,9 +299,6 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
         address tokenAddress_,
         uint256 amount_
     ) external payable onlyRole(PURCHASE_AGENT_ROLE) nonReentrant {
-        if (user_ == address(0)) {
-            revert ErrUserNullAddress();
-        }
         if (_currencies[tokenAddress_].decimals == 0) {
             revert ErrCurrencyNotWhitelisted();
         }
@@ -305,6 +323,9 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
      * Emits a {PriceThresholdUpdated} event on successful update.
      */
     function setPriceThreshold(uint256 priceThresholdSeconds_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (priceThresholdSeconds_ == 0) {
+            revert ErrInvalidPriceThreshold();
+        }
         _priceThresholdSeconds = priceThresholdSeconds_;
         emit PriceThresholdUpdated(priceThresholdSeconds_);
     }
@@ -317,10 +338,7 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
      */
     function retrieveNativeCurrency() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         uint256 balance = address(this).balance;
-        (bool success, ) = _msgSender().call{value: balance}("");
-        if (!success) {
-            revert ErrTransferFailure();
-        }
+        Address.sendValue(payable(_msgSender()), balance);
         emit NativeCurrencyRetrieved(balance);
     }
 
@@ -629,15 +647,20 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Retrieves the latest price from the price feed and ensures the data is recent.
+     * @dev Retrieves the latest price from the price feed and ensures the data is recent and valid.
+     * Adds a check to ensure the price is greater than zero.
      * @param priceFeed The price feed contract.
      * @return int256 The latest price.
-     * @notice Reverts if the price feed update is beyond the acceptable time threshold.
+     * @notice Reverts with `ErrPriceThreshold` if the price feed update is beyond the acceptable time threshold.
+     * Reverts with `ErrInvalidPrice` if the price is zero or negative.
      */
     function _getLatestPrice(AggregatorV3Interface priceFeed) internal view returns (int256) {
         (, int256 price, , uint256 updatedAt, ) = priceFeed.latestRoundData();
         if (block.timestamp - updatedAt > _priceThresholdSeconds) {
             revert ErrPriceThreshold();
+        }
+        if (price <= 0) {
+            revert ErrInvalidPrice();
         }
         return price;
     }
@@ -660,13 +683,12 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Calculates the number of tokens that can be purchased with a given amount of native currency.
-     * This function checks the recency of the price data to ensure that it falls within the acceptable threshold for price updates.
-     * If the data is outdated, the transaction is reverted to prevent incorrect pricing calculations.
+     * @dev Calculates the number of tokens that can be purchased with a given amount of currency.
+     * Includes a check to prevent division by zero if the presale price is zero.
      * @param amount_ The amount of currency provided for the purchase.
-     * @param tokenAddress_ The address of the ERC20 token used for purchase, or zero address for native currency.
+     * @param tokenAddress_ The address of the ERC20 token used for purchase, or the native currency address.
      * @return uint256 The calculated number of tokens that can be bought with the specified amount of currency.
-     * @notice The calculation is sensitive to the price feed's decimal precision and adjusts the result accordingly.
+     * @notice Reverts with `ErrInvalidPrice` if the presale price is zero.
      */
     function _calculateTokensSold(uint256 amount_, address tokenAddress_) internal view returns (uint256) {
         Currency storage currency = _currencies[tokenAddress_];
@@ -674,8 +696,13 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
         int256 price = currency.useStaticPrice ? int256(1e8) : _getLatestPrice(currency.priceFeed);
 
         uint256 amountAdjusted = currency.decimals == 6 ? amount_ * 1e12 : amount_;
+        uint256 presalePrice = _presaleStorage.getPrice();
 
-        return (amountAdjusted * uint256(price) * 1e18) / _presaleStorage.getPrice() / (10 ** decimals);
+        if (presalePrice == 0) {
+            revert ErrInvalidPrice();
+        }
+
+        return (amountAdjusted * uint256(price) * 1e18) / (presalePrice * (10 ** decimals));
     }
 
     /**
@@ -727,16 +754,10 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
                 IERC20(tokenAddress_).safeTransferFrom(_msgSender(), address(_presaleStorage), reward_);
             }
         } else {
-            (bool success, ) = treasury.call{value: amount_ - reward_}("");
-            if (!success) {
-                revert ErrTransferFailure();
-            }
+            Address.sendValue(payable(treasury), amount_ - reward_);
 
             if (reward_ > 0) {
-                (bool rewardSuccess, ) = address(_presaleStorage).call{value: reward_}("");
-                if (!rewardSuccess) {
-                    revert ErrTransferFailure();
-                }
+                Address.sendValue(payable(address(_presaleStorage)), reward_);
             }
         }
     }
@@ -749,22 +770,22 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
      */
     function _calculateNovaPoints(uint256 investment_) internal pure returns (uint256) {
         uint256 multiplier = 0;
-        if (investment_ >= 50 * 1e18 && investment_ < 250 * 1e18) {
-            multiplier = 6;
-        } else if (investment_ >= 250 * 1e18 && investment_ < 500 * 1e18) {
-            multiplier = 7;
-        } else if (investment_ >= 500 * 1e18 && investment_ < 1000 * 1e18) {
-            multiplier = 8;
-        } else if (investment_ >= 1000 * 1e18 && investment_ < 5000 * 1e18) {
-            multiplier = 9;
-        } else if (investment_ >= 5000 * 1e18 && investment_ < 10000 * 1e18) {
-            multiplier = 10;
-        } else if (investment_ >= 10000 * 1e18 && investment_ < 15000 * 1e18) {
-            multiplier = 13;
-        } else if (investment_ >= 15000 * 1e18 && investment_ < 20000 * 1e18) {
-            multiplier = 16;
-        } else if (investment_ >= 20000 * 1e18) {
+        if (investment_ >= 20000 * 1e18) {
             multiplier = 20;
+        } else if (investment_ >= 15000 * 1e18) {
+            multiplier = 16;
+        } else if (investment_ >= 10000 * 1e18) {
+            multiplier = 13;
+        } else if (investment_ >= 5000 * 1e18) {
+            multiplier = 10;
+        } else if (investment_ >= 1000 * 1e18) {
+            multiplier = 9;
+        } else if (investment_ >= 500 * 1e18) {
+            multiplier = 8;
+        } else if (investment_ >= 250 * 1e18) {
+            multiplier = 7;
+        } else if (investment_ >= 50 * 1e18) {
+            multiplier = 6;
         }
 
         return (investment_ * multiplier) / 1e18;

@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title Token Sale Registry
@@ -15,6 +16,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
  */
 contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using Address for address payable;
 
     /**
      * @notice Tracks the state of the token sale.
@@ -240,6 +242,16 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     error ErrRoundStarted(uint256 index_);
 
     /**
+     * @notice Thrown when an invalid price is set (e.g., zero).
+     */
+    error ErrInvalidPrice();
+
+    /**
+     * @notice Thrown when an invalid supply is set (e.g., zero).
+     */
+    error ErrInvalidSupply();
+
+    /**
      * @notice Thrown when an operation is attempted on a sale round that has already ended.
      * @param index_ The index of the sale round.
      */
@@ -356,15 +368,22 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Configures a new sale round with specified prices and supply.
-     * @dev Adds a new `Round` to the `_rounds` array with `Reset` state. Can only be called by an account with the `DEFAULT_ADMIN_ROLE`.
-     * Reverts if the sale is not active.
-     * @param price_ The price for the 'SNOVA token.
+     * @dev Adds validation to prevent setting the price or supply to zero.
+     * @param price_ The price for the 'SNOVA' token.
      * @param supply_ The total token supply for the round.
+     * Reverts with `ErrInvalidPrice` if the price is zero.
+     * Reverts with `ErrInvalidSupply` if the supply is zero.
      * Emits a {SaleRoundConfigured} event on success.
      */
     function configureSaleRound(uint256 price_, uint256 supply_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (isInactive()) {
             revert ErrSaleNotActive();
+        }
+        if (price_ == 0) {
+            revert ErrInvalidPrice();
+        }
+        if (supply_ == 0) {
+            revert ErrInvalidSupply();
         }
         _rounds.push(Round({defined: true, state: State.Reset, price: price_, sold: 0, supply: supply_}));
 
@@ -430,8 +449,10 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     /**
      * @notice Adjusts the pricing for a specific sale round.
      * @dev Can only be called by an account with the `DEFAULT_ADMIN_ROLE`. The round must exist and be in the `Reset` state.
+     * Adds validation to prevent setting the price to zero.
      * @param index_ The index of the sale round to adjust.
      * @param price_ The new investment price.
+     * Reverts with `ErrInvalidPrice` if the price is zero.
      * Reverts if the sale is not active, the round does not exist, or the round is not in the `Reset` state.
      * Emits a {SaleRoundPricingAdjusted} event on success.
      */
@@ -445,6 +466,9 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
         if (_rounds[index_].state != State.Reset) {
             revert ErrRoundStarted(index_);
         }
+        if (price_ == 0) {
+            revert ErrInvalidPrice();
+        }
         _rounds[index_].price = price_;
 
         emit SaleRoundPricingAdjusted(index_, price_);
@@ -453,8 +477,10 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     /**
      * @notice Adjusts the supply for a specific sale round.
      * @dev Can only be called by an account with the `DEFAULT_ADMIN_ROLE`. The round must exist and cannot be in the `Ended` state.
+     * Adds validation to prevent setting the supply to zero.
      * @param index_ The index of the sale round to adjust.
      * @param supply_ The new supply for the round.
+     * Reverts with `ErrInvalidSupply` if the supply is zero.
      * Reverts if the sale is not active, the round does not exist, or the round is in the `Ended` state.
      * Emits a {SaleRoundSupplyAdjusted} event on success.
      */
@@ -470,6 +496,9 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
         }
         if (_rounds[index_].sold > supply_) {
             revert ErrInsufficientRoundSupply(index_);
+        }
+        if (supply_ == 0) {
+            revert ErrInvalidSupply();
         }
         _rounds[index_].supply = supply_;
 
@@ -723,10 +752,11 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
                 continue;
             }
 
+            _refsBalances[ref_][token] = 0;
+
             bool transferSuccess = false;
             if (token == NATIVE_CURRENCY_ADDRESS) {
-                (bool success, ) = ref_.call{value: balance}("");
-                transferSuccess = success;
+                transferSuccess = payable(ref_).send(balance);
             } else {
                 bytes memory data = abi.encodeWithSelector(IERC20(token).transfer.selector, ref_, balance);
                 (bool success, bytes memory returnData) = token.call(data);
@@ -734,10 +764,9 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
             }
 
             if (!transferSuccess) {
+                _refsBalances[ref_][token] = balance;
                 revert ErrTransferFailure();
             }
-
-            _refsBalances[ref_][token] = 0;
 
             emit ReferralRewardsClaimed(ref_, token, balance);
         }
@@ -751,10 +780,7 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
      */
     function retrieveNativeCurrency() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         uint256 balance = address(this).balance;
-        (bool success, ) = _msgSender().call{value: balance}("");
-        if (!success) {
-            revert ErrTransferFailure();
-        }
+        Address.sendValue(payable(_msgSender()), balance);
         emit NativeCurrencyRetrieved(balance);
     }
 

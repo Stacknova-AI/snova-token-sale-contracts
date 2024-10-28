@@ -26,14 +26,14 @@ describe("TokenSaleRegistry - Configure Referral Rates", function () {
     describe("Negative Scenarios", function () {
         it("Should revert if called by a non-admin", async function () {
             await expect(
-                tokenSaleRegistry.connect(nonAdmin).configureReferralRates(primaryRefRate, secondaryRefRate)
+                tokenSaleRegistry.connect(nonAdmin).configureReferralRates(primaryRefRate, secondaryRefRate),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "AccessControlUnauthorizedAccount")
         })
 
         it("Should revert if sales are deactivated", async function () {
             await tokenSaleRegistry.deactivateSale()
             await expect(
-                tokenSaleRegistry.configureReferralRates(primaryRefRate, secondaryRefRate)
+                tokenSaleRegistry.configureReferralRates(primaryRefRate, secondaryRefRate),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "ErrSaleNotActive")
         })
 
@@ -41,7 +41,7 @@ describe("TokenSaleRegistry - Configure Referral Rates", function () {
             const excessivePrimaryRefRate = 500
             const excessiveSecondaryRefRate = 501
             await expect(
-                tokenSaleRegistry.configureReferralRates(excessivePrimaryRefRate, excessiveSecondaryRefRate)
+                tokenSaleRegistry.configureReferralRates(excessivePrimaryRefRate, excessiveSecondaryRefRate),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "ErrReferralRatesExceedLimit")
         })
     })

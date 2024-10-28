@@ -48,7 +48,13 @@ describe("PresaleSNOVA - Set Price Threshold Functionality", function () {
         it("Should revert if called by a non-admin", async function () {
             await expect(presale.connect(user2).setPriceThreshold(1)).to.be.revertedWithCustomError(
                 presale,
-                "AccessControlUnauthorizedAccount"
+                "AccessControlUnauthorizedAccount",
+            )
+        })
+        it("Should revert if price treshold is zero", async function () {
+            await expect(presale.setPriceThreshold(0)).to.be.revertedWithCustomError(
+                presale,
+                "ErrInvalidPriceThreshold",
             )
         })
     })

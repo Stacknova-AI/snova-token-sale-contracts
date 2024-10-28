@@ -28,7 +28,7 @@ describe("TokenSaleRegistry - Adjust Round Pricing", function () {
             await tokenSaleRegistry.configureSaleRound(initialPrice, initialSupply)
             const newPrice = BigInt("20000000000000000")
             await expect(
-                tokenSaleRegistry.connect(nonAdmin).adjustRoundPricing(0, newPrice)
+                tokenSaleRegistry.connect(nonAdmin).adjustRoundPricing(0, newPrice),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "AccessControlUnauthorizedAccount")
         })
 
@@ -37,7 +37,7 @@ describe("TokenSaleRegistry - Adjust Round Pricing", function () {
             await tokenSaleRegistry.deactivateSale()
             await expect(tokenSaleRegistry.adjustRoundPricing(0, initialPrice)).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrSaleNotActive"
+                "ErrSaleNotActive",
             )
         })
 
@@ -51,7 +51,15 @@ describe("TokenSaleRegistry - Adjust Round Pricing", function () {
             await tokenSaleRegistry.startSaleRound(0)
             await expect(tokenSaleRegistry.adjustRoundPricing(0, initialPrice)).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrRoundStarted"
+                "ErrRoundStarted",
+            )
+        })
+
+        it("Should revert if the new round pricing is zero", async function () {
+            await tokenSaleRegistry.configureSaleRound(initialPrice, initialSupply)
+            await expect(tokenSaleRegistry.adjustRoundPricing(0, 0)).to.be.revertedWithCustomError(
+                tokenSaleRegistry,
+                "ErrInvalidPrice",
             )
         })
     })

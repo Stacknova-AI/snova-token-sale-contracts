@@ -61,8 +61,18 @@ describe("PresaleSNOVA Contract - Add Currency and Whitelisting Functionality", 
     describe("Negative Scenarios", function () {
         it("Should revert if called by a non-admin", async function () {
             await expect(
-                presale.connect(user2).addCurrency(erc20MockStable.target, mockPriceFeed1.target, 18, true)
+                presale.connect(user2).addCurrency(erc20MockStable.target, mockPriceFeed1.target, 18, true),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "AccessControlUnauthorizedAccount")
+        })
+        it("Should revert if token Address is zero", async function () {
+            await expect(
+                presale.addCurrency(ethers.ZeroAddress, mockPriceFeed1.target, 18, true),
+            ).to.be.revertedWithCustomError(tokenSaleRegistry, "ErrNullAddress")
+        })
+        it("Should revert if decimals are set to zero or greater than 18", async function () {
+            await expect(
+                presale.addCurrency(erc20MockStable.target, mockPriceFeed1.target, 0, true),
+            ).to.be.revertedWithCustomError(presale, "ErrInvalidDecimals")
         })
     })
 

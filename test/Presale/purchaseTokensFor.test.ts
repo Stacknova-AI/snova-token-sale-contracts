@@ -91,8 +91,8 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
                         user1.address,
                         user3.address,
                         "0x9E8Ea82e76262E957D4cC24e04857A34B0D8f062",
-                        amountInWei
-                    )
+                        amountInWei,
+                    ),
             ).to.be.revertedWithCustomError(presale, "ErrCurrencyNotWhitelisted")
         })
 
@@ -117,7 +117,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
                     .connect(user2)
                     .purchaseTokensFor(user1.address, user3.address, NATIVE_CURRENCY_ADDRESS, amountInWei, {
                         value: amountInWei,
-                    })
+                    }),
             ).to.be.revertedWithCustomError(presale, "ErrAmountValidation")
         })
 
@@ -142,7 +142,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
                     .connect(user2)
                     .purchaseTokensFor(user1.address, user3.address, NATIVE_CURRENCY_ADDRESS, amountInWei, {
                         value: amountInWei,
-                    })
+                    }),
             ).to.be.revertedWithCustomError(presale, "ErrAmountValidation")
         })
 
@@ -161,7 +161,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
             await expect(
                 presale.connect(user3).purchaseTokensFor(user1.address, user2.address, erc20Mock.target, amountInWei, {
                     value: amountInWei,
-                })
+                }),
             ).to.be.revertedWithCustomError(presale, "AccessControlUnauthorizedAccount")
         })
 
@@ -182,7 +182,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
             await expect(
                 presale.connect(user2).purchaseTokensFor(user1.address, user3.address, erc20Mock.target, amountInWei, {
                     value: amountInWei,
-                })
+                }),
             ).to.be.revertedWithCustomError(presale, "ErrValueValidation")
         })
     })
@@ -218,7 +218,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
             await presale.grantRole(ethers.id("PURCHASE_AGENT_ROLE"), user2)
 
             await expect(
-                presale.connect(user2).purchaseTokensFor(user1.address, user3.address, erc20Mock.target, amountInWei)
+                presale.connect(user2).purchaseTokensFor(user1.address, user3.address, erc20Mock.target, amountInWei),
             )
                 .to.emit(presale, "TokensPurchased")
                 .withArgs(
@@ -230,7 +230,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
                     currentRound,
                     investmentInUSD,
                     currencyPriceStatic,
-                    novaPointsAwarded
+                    novaPointsAwarded,
                 )
         })
 
@@ -250,7 +250,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
             await expect(
                 presale.connect(user2).purchaseTokensFor(user1.address, user3.address, NATIVE_CURRENCY_ADDRESS, 0, {
                     value: amountInWei,
-                })
+                }),
             )
                 .to.emit(presale, "TokensPurchased")
                 .withArgs(
@@ -262,7 +262,7 @@ describe("PresaleSNOVA - Purchase Tokens for Somebody Functionality", function (
                     currentRound,
                     investmentInUSD,
                     currencyPriceNotStatic,
-                    novaPointsAwarded
+                    novaPointsAwarded,
                 )
         })
     })

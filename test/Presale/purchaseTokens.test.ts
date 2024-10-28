@@ -94,19 +94,25 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
     describe("Negative Scenarios", function () {
         it("Should revert if caller is referral", async function () {
             await expect(
-                presale.connect(user3).purchaseTokens(user3.address, erc20MockStable.target, amountInWei)
+                presale.connect(user3).purchaseTokens(user3.address, erc20MockStable.target, amountInWei),
             ).to.be.revertedWithCustomError(presale, "ErrReferral")
+        })
+
+        it("Should revert if token Address is zero", async function () {
+            await expect(
+                presale.connect(user2).purchaseTokens(user3.address, ethers.ZeroAddress, 0),
+            ).to.be.revertedWithCustomError(presale, "ErrNullAddress")
         })
 
         it("Should revert if amount is zero", async function () {
             await expect(
-                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, 0)
+                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, 0),
             ).to.be.revertedWithCustomError(presale, "ErrAmountZero")
         })
 
         it("Should revert if tokenSaleRegistry contract is in not active state", async function () {
             await expect(
-                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei)
+                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei),
             ).to.be.revertedWithCustomError(presale, "ErrSaleNotActive")
         })
 
@@ -114,7 +120,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await tokenSaleRegistry.configureSaleRound(price, supply)
             await tokenSaleRegistry.activateSale()
             await expect(
-                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei)
+                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei),
             ).to.be.revertedWithCustomError(presale, "ErrRoundClosed")
         })
 
@@ -125,7 +131,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await presale.setPriceThreshold(1)
 
             await expect(
-                presale.connect(user2).purchaseTokens(user3.address, erc20MockNotStable.target, amountInWei)
+                presale.connect(user2).purchaseTokens(user3.address, erc20MockNotStable.target, amountInWei),
             ).to.be.revertedWithCustomError(presale, "ErrPriceThreshold")
         })
 
@@ -133,7 +139,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await configureAndStartSaleRound()
             await tokenSaleRegistry.updateMinimumContribution(MIN + BigInt("10"))
             await expect(
-                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei)
+                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei),
             ).to.be.revertedWithCustomError(presale, "ErrMin")
         })
 
@@ -146,7 +152,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await expect(
                 presale.connect(user2).purchaseTokens(user3.address, NATIVE_CURRENCY_ADDRESS, 0, {
                     value: amountInWei,
-                })
+                }),
             ).to.be.revertedWithCustomError(presale, "ErrMax")
         })
 
@@ -159,7 +165,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await expect(
                 presale.connect(user2).purchaseTokens(user3.address, "0x9E8Ea82e76262E957D4cC24e04857A34B0D8f062", 0, {
                     value: amountInWei,
-                })
+                }),
             ).to.be.revertedWithCustomError(presale, "ErrCurrencyNotWhitelisted")
         })
 
@@ -170,7 +176,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await expect(
                 presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei, {
                     value: amountInWei,
-                })
+                }),
             ).to.be.revertedWithCustomError(presale, "ErrValueValidation")
         })
 
@@ -183,7 +189,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await expect(
                 presale.connect(user2).purchaseTokens(user3.address, NATIVE_CURRENCY_ADDRESS, amountInWei, {
                     value: amountInWei,
-                })
+                }),
             ).to.be.revertedWithCustomError(presale, "ErrAmountValidation")
         })
 
@@ -208,10 +214,10 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
                 sold,
                 ref,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
             await expect(
-                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei)
+                presale.connect(user2).purchaseTokens(user3.address, erc20MockStable.target, amountInWei),
             ).to.be.revertedWithCustomError(presale, "ErrRoundAllocation")
         })
     })
@@ -239,7 +245,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
                     currentRound,
                     investmentInUSD,
                     currencyPriceStatic,
-                    novaPointsAwarded
+                    novaPointsAwarded,
                 )
         })
 
@@ -259,7 +265,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
             await expect(
                 presale.connect(user2).purchaseTokens(ethers.ZeroAddress, NATIVE_CURRENCY_ADDRESS, 0, {
                     value: amountInWei,
-                })
+                }),
             )
                 .to.emit(presale, "TokensPurchased")
                 .withArgs(
@@ -271,7 +277,7 @@ describe("PresaleSNOVA - Purchase Tokens Functionality", function () {
                     currentRound,
                     investmentInUSD,
                     currencyPriceNotStatic,
-                    novaPointsAwarded
+                    novaPointsAwarded,
                 )
         })
 

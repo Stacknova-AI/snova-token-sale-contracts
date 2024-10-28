@@ -32,7 +32,7 @@ describe("TokenSaleRegistry - Adjust Round Supply", function () {
             await tokenSaleRegistry.startSaleRound(0)
             const newSupply = 150
             await expect(
-                tokenSaleRegistry.connect(nonAdmin).adjustRoundSupply(0, newSupply)
+                tokenSaleRegistry.connect(nonAdmin).adjustRoundSupply(0, newSupply),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "AccessControlUnauthorizedAccount")
         })
 
@@ -42,7 +42,7 @@ describe("TokenSaleRegistry - Adjust Round Supply", function () {
             await tokenSaleRegistry.deactivateSale()
             await expect(tokenSaleRegistry.adjustRoundSupply(0, newSupply)).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrSaleNotActive"
+                "ErrSaleNotActive",
             )
         })
 
@@ -53,7 +53,7 @@ describe("TokenSaleRegistry - Adjust Round Supply", function () {
             const newSupply = 150
             await expect(tokenSaleRegistry.adjustRoundSupply(0, newSupply)).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrRoundEnded"
+                "ErrRoundEnded",
             )
         })
 
@@ -72,18 +72,18 @@ describe("TokenSaleRegistry - Adjust Round Supply", function () {
                 sold,
                 user2.address,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
             await expect(tokenSaleRegistry.adjustRoundSupply(0, newSupply)).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrInsufficientRoundSupply"
+                "ErrInsufficientRoundSupply",
             )
         })
 
         it("Should revert if the round index is not set", async function () {
             const newSupply = 150
             await expect(tokenSaleRegistry.adjustRoundSupply(1, newSupply)).to.be.revertedWithPanic(
-                "0x32" // Array accessed at an out-of-bounds or negative index
+                "0x32", // Array accessed at an out-of-bounds or negative index
             )
         })
     })

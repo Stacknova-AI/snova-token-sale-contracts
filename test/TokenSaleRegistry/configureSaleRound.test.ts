@@ -26,7 +26,7 @@ describe("TokenSaleRegistry - Configure Sale Round", function () {
     describe("Negative Scenarios", function () {
         it("Should revert if called by a non-admin", async function () {
             await expect(
-                tokenSaleRegistry.connect(nonAdmin).configureSaleRound(price, supply)
+                tokenSaleRegistry.connect(nonAdmin).configureSaleRound(price, supply),
             ).to.be.revertedWithCustomError(tokenSaleRegistry, "AccessControlUnauthorizedAccount")
         })
 
@@ -34,7 +34,21 @@ describe("TokenSaleRegistry - Configure Sale Round", function () {
             await tokenSaleRegistry.deactivateSale()
             await expect(tokenSaleRegistry.configureSaleRound(price, supply)).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrSaleNotActive"
+                "ErrSaleNotActive",
+            )
+        })
+
+        it("Should revert if price argument is zero", async function () {
+            await expect(tokenSaleRegistry.configureSaleRound(0, supply)).to.be.revertedWithCustomError(
+                tokenSaleRegistry,
+                "ErrInvalidPrice",
+            )
+        })
+
+        it("Should revert if supply arguments is zero", async function () {
+            await expect(tokenSaleRegistry.configureSaleRound(price, 0)).to.be.revertedWithCustomError(
+                tokenSaleRegistry,
+                "ErrInvalidSupply",
             )
         })
     })

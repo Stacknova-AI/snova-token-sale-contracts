@@ -38,14 +38,14 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
         it("Should revert if the addresses array is empty", async function () {
             await expect(tokenSaleRegistry.claimRef([])).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrEmptyTokenList"
+                "ErrEmptyTokenList",
             )
         })
 
         it("Should revert if the sender is not defined as a referral", async function () {
             await expect(tokenSaleRegistry.claimRef([user3.address])).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrUndefinedReferralAccount"
+                "ErrUndefinedReferralAccount",
             )
         })
 
@@ -54,7 +54,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
             await tokenSaleRegistry.disableReferral(owner.address)
             await expect(tokenSaleRegistry.claimRef([user3.address])).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrReferralNotEnabled"
+                "ErrReferralNotEnabled",
             )
         })
 
@@ -72,12 +72,12 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
                 sold,
                 user2.address,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
 
             await expect(tokenSaleRegistry.connect(user2).claimRef([ethereumInternal])).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "ErrTransferFailure"
+                "AddressInsufficientBalance",
             )
         })
     })
@@ -97,7 +97,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
                 sold,
                 user2.address,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
 
             await erc20Mock.transfer(tokenSaleRegistry.target, 999999)
@@ -120,7 +120,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
                 sold,
                 user2.address,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
 
             await erc20Mock.transfer(tokenSaleRegistry.target, 999999)
@@ -143,7 +143,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
                 sold,
                 user2.address,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
 
             await erc20Mock.transfer(tokenSaleRegistry.target, 999999)
@@ -167,7 +167,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
                 sold,
                 ref,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
             const amountToSend = ethers.parseEther("1.0")
             await owner.sendTransaction({
@@ -188,7 +188,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
             const gasUsed = txReceipt.gasUsed
             const gasCost = gasUsed * tx.gasPrice
             expect(await ethers.provider.getBalance(user2)).to.equal(
-                BigInt(balanceBeforeClaiming) + BigInt(balanceToBeClaimed) - gasCost
+                BigInt(balanceBeforeClaiming) + BigInt(balanceToBeClaimed) - gasCost,
             )
         })
         it("Should emit ReferralRewardsClaimed event", async function () {
@@ -205,7 +205,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
                 sold,
                 user2.address,
                 primaryReward,
-                secondaryReward
+                secondaryReward,
             )
 
             await erc20Mock.transfer(tokenSaleRegistry.target, 999999)

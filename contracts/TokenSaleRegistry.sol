@@ -735,6 +735,7 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
      */
     function claimRef(address[] calldata tokens_) external nonReentrant {
         address ref_ = _msgSender();
+
         if (tokens_.length == 0) {
             revert ErrEmptyTokenList();
         }
@@ -748,24 +749,17 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
         for (uint256 i = 0; i < tokens_.length; i++) {
             address token = tokens_[i];
             uint256 balance = _refsBalances[ref_][token];
+
             if (balance == 0) {
                 continue;
             }
 
             _refsBalances[ref_][token] = 0;
 
-            bool transferSuccess = false;
             if (token == NATIVE_CURRENCY_ADDRESS) {
-                transferSuccess = payable(ref_).send(balance);
+                payable(ref_).sendValue(balance);
             } else {
-                bytes memory data = abi.encodeWithSelector(IERC20(token).transfer.selector, ref_, balance);
-                (bool success, bytes memory returnData) = token.call(data);
-                transferSuccess = success && (returnData.length == 0 || abi.decode(returnData, (bool)));
-            }
-
-            if (!transferSuccess) {
-                _refsBalances[ref_][token] = balance;
-                revert ErrTransferFailure();
+                IERC20(token).safeTransfer(ref_, balance);
             }
 
             emit ReferralRewardsClaimed(ref_, token, balance);

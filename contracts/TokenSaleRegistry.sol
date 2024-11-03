@@ -818,6 +818,17 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Provides detailed information about a specific sale round.
+     * @dev Fetches round data, including prices and state, based on the round index provided.
+     * @param index_ The index of the sale round to retrieve information for.
+     * @return A `Round` struct containing details about the specified sale round.
+     * Reverts if the round index is out of bounds.
+     */
+    function getRound(uint256 index_) external view returns (Round memory) {
+        return _rounds[index_];
+    }
+
+    /**
      * @notice Returns the total number of sale rounds configured in the contract.
      * @dev Provides a count of how many rounds have been added to the sale, regardless of their state.
      * @return The total number of sale rounds.
@@ -833,17 +844,6 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
      */
     function getCurrentRound() external view returns (uint256) {
         return _currentRound;
-    }
-
-    /**
-     * @notice Provides detailed information about a specific sale round.
-     * @dev Fetches round data, including prices and state, based on the round index provided.
-     * @param index_ The index of the sale round to retrieve information for.
-     * @return A `Round` struct containing details about the specified sale round.
-     * Reverts if the round index is out of bounds.
-     */
-    function getRound(uint256 index_) external view returns (Round memory) {
-        return _rounds[index_];
     }
 
     /**
@@ -923,15 +923,6 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Retrieves global referral rates for the sale.
-     * @dev Provides the default referral rates applied to all referrals unless overridden.
-     * @return The primary and secondary referral rates.
-     */
-    function getGlobalRefRates() external view returns (uint256, uint256) {
-        return (_primaryRefRate, _secondaryRefRate);
-    }
-
-    /**
      * @notice Determines the referral associated with a user or transaction.
      * @dev Identifies the referral, if any, responsible for a user's participation in the sale.
      * @param user_ The address of the user whose referral is to be identified.
@@ -971,6 +962,15 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
         if (ref.defined) {
             return (Math.max(ref.primaryRefRate, _primaryRefRate), Math.max(ref.secondaryRefRate, _secondaryRefRate));
         }
+        return (_primaryRefRate, _secondaryRefRate);
+    }
+
+    /**
+     * @notice Retrieves global referral rates for the sale.
+     * @dev Provides the default referral rates applied to all referrals unless overridden.
+     * @return The primary and secondary referral rates.
+     */
+    function getGlobalRefRates() external view returns (uint256, uint256) {
         return (_primaryRefRate, _secondaryRefRate);
     }
 

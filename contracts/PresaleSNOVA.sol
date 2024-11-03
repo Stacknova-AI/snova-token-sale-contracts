@@ -364,16 +364,6 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @notice Retrieves the address of the price feed contract used for pricing information.
-     * @dev Returns the current address stored in `_currencies`.
-     * @param tokenAddress_ The address of the ERC20 token used for price feed, or zero address for native currency.
-     * @return address The address of the price feed contract.
-     */
-    function getPriceFeed(address tokenAddress_) external view returns (address) {
-        return address(_currencies[tokenAddress_].priceFeed);
-    }
-
-    /**
      * @notice Returns the total amount of token or native currency collected through sales.
      * @dev Accesses the Currency from `_currencies` to provide the total collected funds.
      * @return uint256 The total amount of token or native currency collected.
@@ -393,21 +383,31 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @notice Returns the Nova Points balance for a user.
-     * @param user_ The address of the user to retrieve the Nova Points balance for.
-     * @return uint256 The Nova Points balance for the specified user.
-     */
-    function getNovaPoints(address user_) external view returns (uint256) {
-        return _novaPoints[user_];
-    }
-
-    /**
      * @notice Returns the referral count for a user.
      * @param user_ The address of the user to retrieve the referral count for.
      * @return uint256 The referral count for the specified user.
      */
     function getReferralCount(address user_) external view returns (uint256) {
         return _referralCount[user_];
+    }
+
+    /**
+     * @notice Retrieves the address of the price feed contract used for pricing information.
+     * @dev Returns the current address stored in `_currencies`.
+     * @param tokenAddress_ The address of the ERC20 token used for price feed, or zero address for native currency.
+     * @return address The address of the price feed contract.
+     */
+    function getPriceFeed(address tokenAddress_) external view returns (address) {
+        return address(_currencies[tokenAddress_].priceFeed);
+    }
+
+    /**
+     * @notice Returns the Nova Points balance for a user.
+     * @param user_ The address of the user to retrieve the Nova Points balance for.
+     * @return uint256 The Nova Points balance for the specified user.
+     */
+    function getNovaPoints(address user_) external view returns (uint256) {
+        return _novaPoints[user_];
     }
 
     /**

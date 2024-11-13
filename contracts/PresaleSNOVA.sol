@@ -211,7 +211,7 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
      * @notice Adds a new currency and its associated price feed.
      * @dev Can only be called by an account with the `DEFAULT_ADMIN_ROLE`.
      * Validates the `tokenAddress_` and `decimals_`.
-     * @param tokenAddress_ The address of the ERC20 token.
+     * @param tokenAddress_ The address of the ERC20 token.  Use `NATIVE_CURRENCY_ADDRESS` (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) to represent the native currency.
      * @param priceFeed_ The address of the new price feed, or zero address for static price.
      * @param decimals_ The decimals used by the currency.
      * @param useStaticPrice_ If true, use a static price of $1 instead of a price feed.
@@ -231,10 +231,6 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
             revert ErrInvalidDecimals();
         }
         _addCurrency(tokenAddress_, priceFeed_, decimals_, useStaticPrice_);
-    }
-
-    function _addCurrency(address tokenAddress_, address priceFeed_, uint256 decimals_, bool useStaticPrice_) internal {
-        _currencies[tokenAddress_] = Currency(AggregatorV3Interface(priceFeed_), decimals_, useStaticPrice_, 0);
     }
 
     /**
@@ -408,6 +404,21 @@ contract PresaleSNOVA is AccessControl, ReentrancyGuard, Pausable {
      */
     function getNovaPoints(address user_) external view returns (uint256) {
         return _novaPoints[user_];
+    }
+
+    /**
+     * @notice Adds a new currency and its associated price feed to the internal storage.
+     * @param tokenAddress_ The address of the ERC20 token to be added as a new currency.
+     *                      Use `NATIVE_CURRENCY_ADDRESS` (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) to represent the native currency.
+     * @param priceFeed_ The address of the `AggregatorV3Interface` price feed contract.
+     *                    If `useStaticPrice_` is `true`, this can be the zero address.
+     *                    For the native currency, a valid price feed should be provided unless `useStaticPrice_` is `true`.
+     * @param decimals_ The number of decimals the currency uses. Typically aligns with the ERC20 token's decimals.
+     *                  For the native currency, use the standard decimal representation (e.g., 18 for Ether).
+     * @param useStaticPrice_ Determines whether to use a static price of $1 for the currency instead of fetching from a price feed.
+     */
+    function _addCurrency(address tokenAddress_, address priceFeed_, uint256 decimals_, bool useStaticPrice_) internal {
+        _currencies[tokenAddress_] = Currency(AggregatorV3Interface(priceFeed_), decimals_, useStaticPrice_, 0);
     }
 
     /**

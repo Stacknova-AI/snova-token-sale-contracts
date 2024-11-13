@@ -77,7 +77,7 @@ describe("TokenSaleRegistry - Claim Referral Rewards", function () {
 
             await expect(tokenSaleRegistry.connect(user2).claimRef([ethereumInternal])).to.be.revertedWithCustomError(
                 tokenSaleRegistry,
-                "AddressInsufficientBalance",
+                "InsufficientBalance"
             )
         })
     })

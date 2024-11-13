@@ -367,6 +367,77 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Processes and records a sale transaction, distributing rewards if applicable.
+     * @dev This function can only be called by an account with the `OPERATOR_ROLE`. It handles the processing of sales,
+     * updates the total sold amount, participant's funds, and manages referral rewards if a valid referral is provided.
+     * Refactoring involves separate functions for processing sales, recording, and updating referrals.
+     * @param user_ The address of the user participating in the sale.
+     * @param token_ The token in which the sale is conducted.
+     * @param amount_ The amount of funds involved in the transaction.
+     * @param sold_ The amount of tokens sold in this transaction.
+     * @param ref_ The referral's address, if any.
+     * @param primaryReward_ The 'SNOVA' reward amount for the referral.
+     * @param secondaryReward_ The COIN reward amount based on the sale amount.
+     */
+    function processAndRecordSale(
+        address user_,
+        address token_,
+        uint256 amount_,
+        uint256 sold_,
+        address ref_,
+        uint256 primaryReward_,
+        uint256 secondaryReward_
+    ) external onlyRole(OPERATOR_ROLE) {
+        processSale(user_, amount_, sold_);
+        recordReferral(ref_);
+
+        if (ref_ != address(0)) {
+            updateReferralRewards(ref_, token_, primaryReward_, secondaryReward_);
+        }
+        _refsUsers[user_] = ref_;
+    }
+
+    /**
+     * @notice Allows referral accounts to claim their accrued rewards for specified tokens.
+     * @dev Can only be executed by the referral account itself. It transfers the accrued rewards for each token specified in the `tokens_` array.
+     * @param tokens_ An array of token addresses for which to claim rewards.
+     * Reverts if the caller has no rewards to claim for a specified token or if the referral account is not enabled.
+     * Emits a {ReferralRewardsClaimed} event for each token with rewards being claimed.
+     */
+    function claimRef(address[] calldata tokens_) external nonReentrant {
+        address ref_ = _msgSender();
+
+        if (tokens_.length == 0) {
+            revert ErrEmptyTokenList();
+        }
+        if (!_refs[ref_].defined) {
+            revert ErrUndefinedReferralAccount(ref_);
+        }
+        if (!_refs[ref_].enabled) {
+            revert ErrReferralNotEnabled(ref_);
+        }
+
+        for (uint256 i = 0; i < tokens_.length; i++) {
+            address token = tokens_[i];
+            uint256 balance = _refsBalances[ref_][token];
+
+            if (balance == 0) {
+                continue;
+            }
+
+            _refsBalances[ref_][token] = 0;
+
+            if (token == NATIVE_CURRENCY_ADDRESS) {
+                payable(ref_).sendValue(balance);
+            } else {
+                IERC20(token).safeTransfer(ref_, balance);
+            }
+
+            emit ReferralRewardsClaimed(ref_, token, balance);
+        }
+    }
+
+    /**
      * @notice Configures a new sale round with specified prices and supply.
      * @dev Adds validation to prevent setting the price or supply to zero.
      * @param price_ The price for the 'SNOVA' token.
@@ -551,42 +622,6 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Authorizes or deauthorizes a participant for the token sale.
-     * @dev Can only be called by an account with the `OPERATOR_ROLE`.
-     * @param user_ The address of the participant to authorize or deauthorize.
-     * @param value_ A boolean where `true` authorizes the participant and `false` deauthorizes them.
-     * Emits an {AuthUserUpdated} event on success.
-     */
-    function authorizeParticipant(address user_, bool value_) external onlyRole(OPERATOR_ROLE) {
-        _auth[user_] = value_;
-
-        emit AuthUserUpdated(user_, value_);
-    }
-
-    /**
-     * @notice Batch authorizes or deauthorizes participants for the token sale.
-     * @dev Can only be called by an account with the `OPERATOR_ROLE`.
-     * @param users_ The addresses of the participants to authorize or deauthorize.
-     * @param values_ An array of booleans where `true` authorizes and `false` deauthorizes the corresponding participant.
-     * Reverts if the length of `users_` and `values_` arrays do not match.
-     * Emits an {AuthUserUpdated} event for each participant on success.
-     */
-
-    function batchAuthorizeParticipants(
-        address[] calldata users_,
-        bool[] calldata values_
-    ) external onlyRole(OPERATOR_ROLE) {
-        if (users_.length != values_.length) {
-            revert ErrInvalidParameters();
-        }
-        for (uint256 index = 0; index < users_.length; index++) {
-            _auth[users_[index]] = values_[index];
-
-            emit AuthUserUpdated(users_[index], values_[index]);
-        }
-    }
-
-    /**
      * @notice Updates the maximum allocation allowed per participant.
      * @dev Can only be called by an account with the `DEFAULT_ADMIN_ROLE`.
      * @param amount_ The new maximum allocation amount.
@@ -642,6 +677,42 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Authorizes or deauthorizes a participant for the token sale.
+     * @dev Can only be called by an account with the `OPERATOR_ROLE`.
+     * @param user_ The address of the participant to authorize or deauthorize.
+     * @param value_ A boolean where `true` authorizes the participant and `false` deauthorizes them.
+     * Emits an {AuthUserUpdated} event on success.
+     */
+    function authorizeParticipant(address user_, bool value_) external onlyRole(OPERATOR_ROLE) {
+        _auth[user_] = value_;
+
+        emit AuthUserUpdated(user_, value_);
+    }
+
+    /**
+     * @notice Batch authorizes or deauthorizes participants for the token sale.
+     * @dev Can only be called by an account with the `OPERATOR_ROLE`.
+     * @param users_ The addresses of the participants to authorize or deauthorize.
+     * @param values_ An array of booleans where `true` authorizes and `false` deauthorizes the corresponding participant.
+     * Reverts if the length of `users_` and `values_` arrays do not match.
+     * Emits an {AuthUserUpdated} event for each participant on success.
+     */
+
+    function batchAuthorizeParticipants(
+        address[] calldata users_,
+        bool[] calldata values_
+    ) external onlyRole(OPERATOR_ROLE) {
+        if (users_.length != values_.length) {
+            revert ErrInvalidParameters();
+        }
+        for (uint256 index = 0; index < users_.length; index++) {
+            _auth[users_[index]] = values_[index];
+
+            emit AuthUserUpdated(users_[index], values_[index]);
+        }
+    }
+
+    /**
      * @notice Updates the wallet address used for managing funds collected from the sale.
      * @dev Can only be called by an account with the `DEFAULT_ADMIN_ROLE`.
      * @param fundsManagementWallet_ The new funds management wallet address.
@@ -655,37 +726,6 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
         _fundsManagementWallet = fundsManagementWallet_;
 
         emit FundsManagementWalletUpdated(fundsManagementWallet_);
-    }
-
-    /**
-     * @notice Processes and records a sale transaction, distributing rewards if applicable.
-     * @dev This function can only be called by an account with the `OPERATOR_ROLE`. It handles the processing of sales,
-     * updates the total sold amount, participant's funds, and manages referral rewards if a valid referral is provided.
-     * Refactoring involves separate functions for processing sales, recording, and updating referrals.
-     * @param user_ The address of the user participating in the sale.
-     * @param token_ The token in which the sale is conducted.
-     * @param amount_ The amount of funds involved in the transaction.
-     * @param sold_ The amount of tokens sold in this transaction.
-     * @param ref_ The referral's address, if any.
-     * @param primaryReward_ The 'SNOVA' reward amount for the referral.
-     * @param secondaryReward_ The COIN reward amount based on the sale amount.
-     */
-    function processAndRecordSale(
-        address user_,
-        address token_,
-        uint256 amount_,
-        uint256 sold_,
-        address ref_,
-        uint256 primaryReward_,
-        uint256 secondaryReward_
-    ) external onlyRole(OPERATOR_ROLE) {
-        processSale(user_, amount_, sold_);
-        recordReferral(ref_);
-
-        if (ref_ != address(0)) {
-            updateReferralRewards(ref_, token_, primaryReward_, secondaryReward_);
-        }
-        _refsUsers[user_] = ref_;
     }
 
     /**
@@ -724,46 +764,6 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
         _refs[ref_].enabled = false;
 
         emit ReferralDisabled(ref_);
-    }
-
-    /**
-     * @notice Allows referral accounts to claim their accrued rewards for specified tokens.
-     * @dev Can only be executed by the referral account itself. It transfers the accrued rewards for each token specified in the `tokens_` array.
-     * @param tokens_ An array of token addresses for which to claim rewards.
-     * Reverts if the caller has no rewards to claim for a specified token or if the referral account is not enabled.
-     * Emits a {ReferralRewardsClaimed} event for each token with rewards being claimed.
-     */
-    function claimRef(address[] calldata tokens_) external nonReentrant {
-        address ref_ = _msgSender();
-
-        if (tokens_.length == 0) {
-            revert ErrEmptyTokenList();
-        }
-        if (!_refs[ref_].defined) {
-            revert ErrUndefinedReferralAccount(ref_);
-        }
-        if (!_refs[ref_].enabled) {
-            revert ErrReferralNotEnabled(ref_);
-        }
-
-        for (uint256 i = 0; i < tokens_.length; i++) {
-            address token = tokens_[i];
-            uint256 balance = _refsBalances[ref_][token];
-
-            if (balance == 0) {
-                continue;
-            }
-
-            _refsBalances[ref_][token] = 0;
-
-            if (token == NATIVE_CURRENCY_ADDRESS) {
-                payable(ref_).sendValue(balance);
-            } else {
-                IERC20(token).safeTransfer(ref_, balance);
-            }
-
-            emit ReferralRewardsClaimed(ref_, token, balance);
-        }
     }
 
     /**
@@ -878,6 +878,16 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Retrieves the total amount of funds a user has contributed to the sale.
+     * @dev Provides the cumulative contribution amount of a user across all sale rounds.
+     * @param user_ The address of the user.
+     * @return The total contribution amount of the user in the token sale's currency.
+     */
+    function getFundsOfUser(address user_) external view returns (uint256) {
+        return _funds[user_];
+    }
+
+    /**
      * @notice Calculates the remaining allocation a user is allowed to contribute.
      * @dev Determines how much more a user can contribute based on their current contributions and the authorization limit.
      * @param user_ The address of the user.
@@ -901,16 +911,6 @@ contract TokenSaleRegistry is AccessControl, ReentrancyGuard {
     function maxLimitOf(address user_) external view returns (uint256) {
         uint256 amount = _funds[user_];
         return amount < _max ? _max - amount : 0;
-    }
-
-    /**
-     * @notice Retrieves the total amount of funds a user has contributed to the sale.
-     * @dev Provides the cumulative contribution amount of a user across all sale rounds.
-     * @param user_ The address of the user.
-     * @return The total contribution amount of the user in the token sale's currency.
-     */
-    function getFundsOfUser(address user_) external view returns (uint256) {
-        return _funds[user_];
     }
 
     /**

@@ -1,4 +1,4 @@
-# <img src="https://i.imgur.com/bSQMRZW.png" alt="Stacknova AI" width="27" height="27" /> Stacknova AI: Pre-sale Contract for SNOVA Tokens <img src="https://i.imgur.com/bSQMRZW.png" alt="Stacknova AI" width="27" height="27" />
+# <img src="https://imgur.com/a/kyz6DBr" alt="Stacknova AI" width="27" height="27" /> Stacknova AI: Pre-sale Contract for SNOVA Tokens <img src="https://imgur.com/a/kyz6DBr" alt="Stacknova AI" width="27" height="27" />
 
 ## Table of Contents
 
